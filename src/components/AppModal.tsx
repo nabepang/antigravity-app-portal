@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { AppItem, AppFormData, AppCategory } from '../types/app';
-import { X, ShieldAlert, Cpu, Folder, Key, Layout, FileText, CheckCircle, Globe, Image } from 'lucide-react';
+import { X, ShieldAlert, Cpu, Folder, Key, Layout, FileText, CheckCircle, Globe, Image as ImageIcon, Upload, Trash2, AlertCircle } from 'lucide-react';
 
 interface AppModalProps {
   isOpen: boolean;
@@ -20,6 +20,7 @@ const PRESET_MODELS = [
 ];
 
 const CATEGORIES: AppCategory[] = ['自分用', 'はぁもにぃ永平寺用', '他社向け用'];
+const MAX_FILE_SIZE_MB = 3; // サムネイル画像の最大推奨サイズ (3MB)
 
 export const AppModal: React.FC<AppModalProps> = ({
   isOpen,
@@ -41,7 +42,10 @@ export const AppModal: React.FC<AppModalProps> = ({
 
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [customModelValue, setCustomModelValue] = useState('');
+  const [imageError, setImageError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string }>({});
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingApp) {
@@ -79,10 +83,45 @@ export const AppModal: React.FC<AppModalProps> = ({
       setIsCustomModel(false);
       setCustomModelValue('');
     }
+    setImageError(null);
     setErrors({});
   }, [editingApp, isOpen]);
 
   if (!isOpen) return null;
+
+  // 画像ファイル選択処理
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageError(null);
+
+    // サイズ検証
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setImageError(`画像サイズが大きすぎます (${(file.size / 1024 / 1024).toFixed(1)}MB)。${MAX_FILE_SIZE_MB}MB以下の画像を選択してください。`);
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target?.result as string;
+      if (base64Data) {
+        setFormData(prev => ({ ...prev, thumbnailUrl: base64Data }));
+      }
+    };
+    reader.onerror = () => {
+      setImageError('画像の読み込みに失敗しました。');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // 登録画像のクリア
+  const handleClearImage = () => {
+    setFormData(prev => ({ ...prev, thumbnailUrl: '' }));
+    setImageError(null);
+  };
 
   const validate = () => {
     const newErrors: { name?: string } = {};
@@ -119,7 +158,7 @@ export const AppModal: React.FC<AppModalProps> = ({
               {editingApp ? 'アプリ情報の編集' : '新規アプリ登録'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Antigravity プロジェクトのメタ情報・WebアプリURLを入力・更新します
+              Antigravity プロジェクトのメタ情報・サムネイル画像を登録・更新します
             </p>
           </div>
           <button
@@ -176,14 +215,14 @@ export const AppModal: React.FC<AppModalProps> = ({
             {errors.name && <p className="text-xs text-rose-400 mt-1">{errors.name}</p>}
           </div>
 
-          {/* WebアプリのURL (新規追加) */}
+          {/* WebアプリのURL */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Globe className="w-4 h-4 text-indigo-400" />
-                <span>WebアプリのURL (デプロイ先URL)</span>
+                <span>WebアプリのURL (任意)</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-normal">登録するとプレビューが自動生成されます</span>
+              <span className="text-[10px] text-slate-500 font-normal">画像未アップロード時に自動プレビュー化</span>
             </label>
             <input
               type="url"
@@ -194,22 +233,79 @@ export const AppModal: React.FC<AppModalProps> = ({
             />
           </div>
 
-          {/* サムネイル画像URL (任意) */}
+          {/* サムネイル画像アップロード (PNG, JPEG, WebP, GIF, SVG対応) */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Image className="w-4 h-4 text-purple-400" />
-                <span>カスタム サムネイル画像URL (任意)</span>
+                <ImageIcon className="w-4 h-4 text-purple-400" />
+                <span>サムネイル画像アップロード</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-normal">空欄時はWebアプリURLから自動生成</span>
+              <span className="text-[10px] text-slate-500 font-normal">PNG, JPEG, WebP, GIF, SVG対応 (最大3MB)</span>
             </label>
+
+            {formData.thumbnailUrl ? (
+              /* アップロード済み画像のプレビュー表示 */
+              <div className="relative rounded-xl border border-slate-800 overflow-hidden bg-slate-950 p-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <img
+                    src={formData.thumbnailUrl}
+                    alt="サムネイルプレビュー"
+                    className="w-16 h-10 object-cover rounded-lg border border-slate-800 shrink-0"
+                  />
+                  <div className="truncate text-xs">
+                    <p className="text-slate-200 font-medium truncate">登録済み画像</p>
+                    <p className="text-[10px] text-emerald-400">アップロード成功</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition-colors"
+                  >
+                    変更
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearImage}
+                    className="p-1.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-400 hover:bg-rose-900/60 transition-colors"
+                    title="画像を削除"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ドロップ＆アップロードボタン領域 */
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-800 hover:border-indigo-500/60 rounded-xl p-4 text-center bg-slate-950/50 hover:bg-slate-950/80 cursor-pointer transition-all duration-200 group"
+              >
+                <Upload className="w-6 h-6 text-slate-500 group-hover:text-indigo-400 mx-auto mb-1.5 transition-colors" />
+                <p className="text-xs text-slate-300 font-medium">
+                  クリックして画像をアップロード
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  PNG, JPEG, WebP, GIF, SVG 等に対応
+                </p>
+              </div>
+            )}
+
+            {/* 非表示のファイル入力 */}
             <input
-              type="url"
-              value={formData.thumbnailUrl || ''}
-              onChange={e => setFormData({ ...formData, thumbnailUrl: e.target.value })}
-              placeholder="https://example.com/thumbnail.png (空欄推奨)"
-              className="w-full px-3.5 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-mono"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageFileChange}
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+              className="hidden"
             />
+
+            {imageError && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
           </div>
 
           {/* プロジェクト名 */}

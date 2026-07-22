@@ -24,7 +24,7 @@ const SAMPLE_APPS: AppItem[] = [
   {
     id: 'sample-001',
     name: 'アプリ管理ポータルサイト',
-    model: 'gemini-2.5-flash',
+    model: 'Gemini 3.6 Flash',
     apiKeyName: 'GEMINI_API_KEY_PERSONAL',
     projectName: 'アプリ管理ポータルサイト',
     folderPath: 'c:/Users/nabep/ドキュメント/05.やる気のスイッチ！エキスパートコーチ養成講座/★平鍋開催講座/7.AI副業/06.Antigravity/アプリ管理ポータルサイト',
@@ -36,7 +36,7 @@ const SAMPLE_APPS: AppItem[] = [
   {
     id: 'sample-002',
     name: 'はぁもにぃ永平寺 業務自動化アシスタント',
-    model: 'gemini-1.5-pro',
+    model: 'Gemini 3.1 Pro',
     apiKeyName: 'GEMINI_API_KEY_HARMONY',
     projectName: '永平寺業務自動化',
     folderPath: 'C:/Projects/HarmonyEiheiji/WorkflowApp',
@@ -48,7 +48,7 @@ const SAMPLE_APPS: AppItem[] = [
   {
     id: 'sample-003',
     name: 'AI DXコンサル顧客向け提案デモアプリ',
-    model: 'gemini-2.5-flash',
+    model: 'Gemini 3.5 Flash',
     apiKeyName: 'GEMINI_API_KEY_CLIENT',
     projectName: 'DX提案用デモ',
     folderPath: 'C:/Projects/ClientDemo/DXPortal',
@@ -167,7 +167,7 @@ export function useAppStorage() {
       const sanitizedApps: AppItem[] = parsed.map((item: any, idx: number) => ({
         id: item.id || `imported-${Date.now()}-${idx}`,
         name: item.name || '名称未設定',
-        model: item.model || 'gemini-2.5-flash',
+        model: item.model || 'Gemini 3.5 Flash',
         apiKeyName: item.apiKeyName || '未割り当て',
         projectName: item.projectName || item.name || '',
         folderPath: item.folderPath || '',

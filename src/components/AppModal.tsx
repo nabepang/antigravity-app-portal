@@ -11,12 +11,10 @@ interface AppModalProps {
 
 const PRESET_MODELS = [
   '未使用',
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
-  'gemini-2.0-flash-exp',
-  'gemini-1.0-pro',
+  'Gemini 3.5 Flash',
+  'Gemini 3.5 Flash Lite',
+  'Gemini 3.6 Flash',
+  'Gemini 3.1 Pro',
 ];
 
 const CATEGORIES: AppCategory[] = ['自分用', 'はぁもにぃ永平寺用', '他社向け用'];
@@ -30,7 +28,7 @@ export const AppModal: React.FC<AppModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<AppFormData>({
     name: '',
-    model: 'gemini-2.5-flash',
+    model: 'Gemini 3.5 Flash',
     apiKeyName: 'GEMINI_API_KEY_DEFAULT',
     projectName: '',
     folderPath: '',
@@ -71,7 +69,7 @@ export const AppModal: React.FC<AppModalProps> = ({
     } else {
       setFormData({
         name: '',
-        model: 'gemini-2.5-flash',
+        model: 'Gemini 3.5 Flash',
         apiKeyName: 'GEMINI_API_KEY_MAIN',
         projectName: '',
         folderPath: '',
@@ -136,7 +134,7 @@ export const AppModal: React.FC<AppModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
-    const finalModel = isCustomModel ? customModelValue.trim() || 'gemini-2.5-flash' : formData.model;
+    const finalModel = isCustomModel ? customModelValue.trim() || 'Gemini 3.5 Flash' : formData.model;
 
     onSubmit({
       ...formData,

@@ -62,9 +62,12 @@ export function App() {
     return counts;
   }, [apps]);
 
-  // 重複を除いたモデル数
+  // 重複を除いたモデル数 (未使用を除く)
   const uniqueModelsCount = useMemo(() => {
-    return new Set(apps.map(a => a.model)).size;
+    const activeModels = apps
+      .map(a => a.model)
+      .filter(m => m && m !== '未使用' && m !== 'なし');
+    return new Set(activeModels).size;
   }, [apps]);
 
   // カテゴリ & 検索キーワードでの絞り込み

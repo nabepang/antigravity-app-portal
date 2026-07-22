@@ -10,6 +10,7 @@ interface AppModalProps {
 }
 
 const PRESET_MODELS = [
+  '未使用',
   'gemini-2.5-flash',
   'gemini-2.5-pro',
   'gemini-1.5-pro',

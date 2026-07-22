@@ -172,9 +172,21 @@ export const AppCard: React.FC<AppCardProps> = ({
 
           {/* Geminiモデル & APIキー識別名バッジ群 */}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/60 border border-slate-800 text-indigo-300">
-              <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="font-mono font-medium">{app.model}</span>
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
+                app.model === '未使用' || app.model === 'なし'
+                  ? 'bg-slate-950/40 border-slate-800/80 text-slate-500'
+                  : 'bg-slate-950/60 border-slate-800 text-indigo-300'
+              }`}
+            >
+              <Cpu
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  app.model === '未使用' || app.model === 'なし' ? 'text-slate-500' : 'text-indigo-400'
+                }`}
+              />
+              <span className="font-mono font-medium">
+                {app.model === '未使用' || app.model === 'なし' ? 'モデル: 未使用' : app.model}
+              </span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/60 border border-slate-800 text-emerald-300">

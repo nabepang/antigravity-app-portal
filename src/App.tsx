@@ -9,7 +9,7 @@ import { AppModal } from './components/AppModal';
 import { StatsSummary } from './components/StatsSummary';
 import type { ToastMessage } from './components/Toast';
 import { ToastContainer } from './components/Toast';
-import { Plus, SearchX, AlertTriangle, Sparkles } from 'lucide-react';
+import { SearchX, AlertTriangle, Sparkles, Filter, X } from 'lucide-react';
 
 export function App() {
   const {
@@ -25,6 +25,8 @@ export function App() {
   // 状態管理
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('すべて');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedModel, setSelectedModel] = useState<string>('すべて');
+  const [selectedApiKey, setSelectedApiKey] = useState<string>('すべて');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<AppItem | null>(null);
 
@@ -70,28 +72,71 @@ export function App() {
     return new Set(activeModels).size;
   }, [apps]);
 
-  // カテゴリ & 検索キーワードでの絞り込み
+  // 登録アプリから自動抽出する動的モデル一覧 (重複なし・ソート済み)
+  const availableModels = useMemo(() => {
+    const modelsSet = new Set<string>();
+    apps.forEach(app => {
+      if (app.model && app.model.trim()) {
+        modelsSet.add(app.model.trim());
+      }
+    });
+    return Array.from(modelsSet).sort((a, b) => {
+      if (a === '未使用') return 1;
+      if (b === '未使用') return -1;
+      return a.localeCompare(b);
+    });
+  }, [apps]);
+
+  // 登録アプリから自動抽出する動的APIキー名一覧 (重複なし・ソート済み)
+  const availableApiKeys = useMemo(() => {
+    const keysSet = new Set<string>();
+    apps.forEach(app => {
+      if (app.apiKeyName && app.apiKeyName.trim()) {
+        keysSet.add(app.apiKeyName.trim());
+      }
+    });
+    return Array.from(keysSet).sort((a, b) => a.localeCompare(b));
+  }, [apps]);
+
+  // 複合フィルタリング (カテゴリ, モデルドロップダウン, APIキードロップダウン, キーワード検索)
   const filteredApps = useMemo(() => {
     return apps.filter(app => {
-      // カテゴリマッチ
+      // 1. カテゴリマッチ
       const matchesCategory =
         selectedCategory === 'すべて' || app.category === selectedCategory;
 
-      // 検索クエリマッチ
+      // 2. モデルドロップダウンマッチ
+      const matchesModel =
+        selectedModel === 'すべて' || app.model === selectedModel;
+
+      // 3. APIキードロップダウンマッチ
+      const matchesApiKey =
+        selectedApiKey === 'すべて' || app.apiKeyName === selectedApiKey;
+
+      // 4. リアルタイムキーワード検索マッチ
       const q = searchQuery.toLowerCase().trim();
-      if (!q) return matchesCategory;
+      let matchesQuery = true;
+      if (q) {
+        matchesQuery = Boolean(
+          app.name.toLowerCase().includes(q) ||
+          app.model.toLowerCase().includes(q) ||
+          app.apiKeyName.toLowerCase().includes(q) ||
+          (app.projectName && app.projectName.toLowerCase().includes(q)) ||
+          (app.memo && app.memo.toLowerCase().includes(q)) ||
+          (app.folderPath && app.folderPath.toLowerCase().includes(q))
+        );
+      }
 
-      const matchesQuery =
-        app.name.toLowerCase().includes(q) ||
-        app.model.toLowerCase().includes(q) ||
-        app.apiKeyName.toLowerCase().includes(q) ||
-        (app.projectName && app.projectName.toLowerCase().includes(q)) ||
-        (app.memo && app.memo.toLowerCase().includes(q)) ||
-        (app.folderPath && app.folderPath.toLowerCase().includes(q));
-
-      return matchesCategory && matchesQuery;
+      return matchesCategory && matchesModel && matchesApiKey && matchesQuery;
     });
-  }, [apps, selectedCategory, searchQuery]);
+  }, [apps, selectedCategory, selectedModel, selectedApiKey, searchQuery]);
+
+  // フィルター一括リセット
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedModel('すべて');
+    setSelectedApiKey('すべて');
+  };
 
   // モーダル操作ハンドラー
   const handleOpenCreateModal = () => {
@@ -141,6 +186,7 @@ export function App() {
   const handleResetData = () => {
     if (window.confirm('登録データをサンプルデータ（各カテゴリ1件）にリセットしますか？')) {
       resetToSampleData();
+      handleResetFilters();
       addToast('info', 'データ初期化', 'サンプルデータにリセットしました。');
     }
   };
@@ -164,8 +210,8 @@ export function App() {
           totalModelsCount={uniqueModelsCount}
         />
 
-        {/* コントロールバー: カテゴリフィルタ & 検索バー */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 backdrop-blur-md">
+        {/* コントロールバー: カテゴリタブ & 検索・モデル/APIキー動的ドロップダウン */}
+        <div className="flex flex-col gap-4 mb-6 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 backdrop-blur-md">
           <CategoryFilter
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
@@ -174,15 +220,55 @@ export function App() {
           <SearchBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            availableApiKeys={availableApiKeys}
+            selectedApiKey={selectedApiKey}
+            onApiKeyChange={setSelectedApiKey}
+            onResetFilters={handleResetFilters}
           />
         </div>
 
-        {/* 検索結果・件数案内 */}
-        <div className="flex items-center justify-between mb-4 px-1">
-          <div className="text-xs text-slate-400">
-            全 <span className="font-semibold text-white">{filteredApps.length}</span> 件のアプリを表示中
-            {searchQuery && (
-              <span>（キーワード: <strong className="text-indigo-400">"{searchQuery}"</strong>）</span>
+        {/* アクティブフィルター情報 & 表示件数 */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400">
+            <span>表示中: <strong className="text-white">{filteredApps.length}</strong> / {apps.length} 件</span>
+
+            {(selectedModel !== 'すべて' || selectedApiKey !== 'すべて' || searchQuery !== '') && (
+              <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-slate-800 flex-wrap">
+                <span className="text-slate-500 flex items-center gap-1">
+                  <Filter className="w-3 h-3 text-indigo-400" />
+                  <span>絞り込み中:</span>
+                </span>
+
+                {selectedModel !== 'すべて' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-mono text-[11px]">
+                    モデル: {selectedModel}
+                    <button onClick={() => setSelectedModel('すべて')} className="hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {selectedApiKey !== 'すべて' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-mono text-[11px]">
+                    APIキー: {selectedApiKey}
+                    <button onClick={() => setSelectedApiKey('すべて')} className="hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {searchQuery && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700 text-[11px]">
+                    "{searchQuery}"
+                    <button onClick={() => setSearchQuery('')} className="hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -207,22 +293,17 @@ export function App() {
               <SearchX className="w-8 h-8 text-indigo-400" />
             </div>
             <h3 className="text-lg font-bold text-slate-200">
-              {searchQuery ? '該当するアプリが見つかりませんでした' : '表示できるアプリがありません'}
+              条件に一致するアプリが見つかりませんでした
             </h3>
             <p className="text-xs text-slate-400 mt-1 max-w-sm">
-              {searchQuery
-                ? '検索キーワードを変更するか、フィルタ条件をリセットしてお試しください。'
-                : '「＋ 新規アプリ登録」ボタンからAntigravityプロジェクトを追加しましょう。'}
+              モデル、APIキー、またはキーワードの検索条件を変更して再度お試しください。
             </p>
-            {!searchQuery && (
-              <button
-                onClick={handleOpenCreateModal}
-                className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>新しいアプリを登録する</span>
-              </button>
-            )}
+            <button
+              onClick={handleResetFilters}
+              className="mt-5 flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all"
+            >
+              <span>検索条件をすべてクリア</span>
+            </button>
           </div>
         )}
 
@@ -234,7 +315,7 @@ export function App() {
           <p>© 2026 Antigravity App Management Portal. Built for High-Efficiency Workflows.</p>
           <div className="flex items-center gap-1 text-[11px] text-slate-600">
             <Sparkles className="w-3 h-3 text-indigo-500" />
-            <span>Vercel Deploy Ready & LocalStorage Protected</span>
+            <span>Vercel Deploy Ready & Dynamic Filtering Powered</span>
           </div>
         </div>
       </footer>
